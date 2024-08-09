@@ -61,8 +61,9 @@ pub fn embed_server(app_handle: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let ping = warp::path!("commands" / "ping").map(move || "ok");
 
+        let app_handle_for_window = app_handle.clone();
         let visible = warp::path!("commands" / "visible").map(move || {
-            resolve::create_window(&app_handle);
+            resolve::create_window(&app_handle_for_window);
             "ok"
         });
 
@@ -81,10 +82,13 @@ pub fn embed_server(app_handle: AppHandle) {
         });
         let scheme = warp::path!("commands" / "scheme")
             .and(warp::query::<QueryParam>())
-            .and_then(scheme_handler);
+            .and_then(move |query| scheme_handler(app_handle.clone(), query));
 
-        async fn scheme_handler(query: QueryParam) -> Result<impl warp::Reply, Infallible> {
-            resolve::resolve_scheme(query.param).await;
+        async fn scheme_handler(
+            app_handle: AppHandle,
+            query: QueryParam,
+        ) -> Result<impl warp::Reply, Infallible> {
+            resolve::resolve_scheme(&app_handle, query.param).await;
             Ok("ok")
         }
         let commands = ping.or(visible).or(pac).or(scheme);

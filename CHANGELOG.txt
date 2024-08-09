@@ -1,3 +1,16 @@
+# mirage v1 to v2
+- [x] 系统托盘 (tray) --> 未验证
+- [x] 对话框 (dialog) --> 未验证
+- [x] 通知提示 (notification) --> 未验证
+- [x] 剪贴板 (clipboard) --> 未验证
+- [x] 当前进程 (process) --> 未验证
+- [x] 系统 shell (shell) --> 未验证
+- [ ] 全局快捷方式 (globalshortcut) --> 未验证
+- [x] 窗口状态 (windowstate) --> 未验证
+- [x] 自动启动 (autostart) --> 未验证
+
+
+# ChangeLog
 ### ✨ Features
 - clash 外部控制的 API 密钥支持点击生成随机密钥
 - 设置界面的 `Switch` 切换按钮支持显示正在切换中的繁忙状态

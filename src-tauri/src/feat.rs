@@ -8,21 +8,24 @@ use crate::cmds;
 use crate::config::*;
 use crate::core::*;
 use crate::log_err;
-use crate::utils::dirs::APP_ID;
 use crate::utils::resolve;
 use anyhow::{anyhow, bail, Error, Result};
 use serde_yaml::{Mapping, Value};
-use tauri::api::dialog::blocking::MessageDialogBuilder;
-use tauri::api::dialog::{MessageDialogButtons, MessageDialogKind};
-use tauri::api::notification::Notification;
-use tauri::{AppHandle, ClipboardManager, Manager};
+use tauri::AppHandle;
+use tauri::Manager;
+use tauri_plugin_autostart::ManagerExt;
+use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::MessageDialogKind;
+use tauri_plugin_notification::NotificationExt;
 
 // 打开面板
+#[allow(unused)]
 pub fn open_or_close_dashboard() {
     let handle = handle::Handle::global();
     let app_handle = handle.app_handle.lock();
     if let Some(app_handle) = app_handle.as_ref() {
-        if let Some(window) = app_handle.get_window("main") {
+        if let Some(window) = app_handle.get_webview_window("main") {
             if let Ok(true) = window.is_focused() {
                 let _ = window.close();
                 return;
@@ -89,7 +92,7 @@ pub fn toggle_system_proxy() {
     });
 }
 
-pub fn toggle_service_mode() {
+pub fn toggle_service_mode(app_handle: AppHandle) {
     let enable = Config::verge()
         .latest()
         .enable_service_mode
@@ -112,32 +115,46 @@ pub fn toggle_service_mode() {
                     {
                         Ok(_) => handle::Handle::refresh_verge(),
                         Err(err) => {
-                            Notification::new(APP_ID)
+                            app_handle
+                                .notification()
+                                .builder()
                                 .title("Clash Verge Service")
                                 .body(format!("{}, {}", toggle_failed_msg, err))
                                 .show()
                                 .unwrap();
+                            // Notification::new(APP_ID)
+                            //     .title("Clash Verge Service")
+                            //     .body(format!("{}, {}", toggle_failed_msg, err))
+                            //     .show()
+                            //     .unwrap();
                             log::error!(target: "app", "{err}")
                         }
                     }
                 } else {
-                    Notification::new(APP_ID)
+                    app_handle
+                        .notification()
+                        .builder()
                         .title("Clash Verge Service")
                         .body(format!("{}, {}", toggle_failed_msg, response.msg))
                         .show()
                         .unwrap();
+                    // Notification::new(APP_ID)
+                    //     .title("Clash Verge Service")
+                    //     .body(format!("{}, {}", toggle_failed_msg, response.msg))
+                    //     .show()
+                    //     .unwrap();
                 }
             }
             _ => {
-                let status = MessageDialogBuilder::new(
-                    "Install And Run Clash Verge Service",
-                    "Clash Verge Service not installed.\nDo you want to install and run Clash Verge Service right now?",
-                )
+                let status = app_handle.dialog()
+                .message("Clash Verge Service not installed.\nDo you want to install and run Clash Verge Service right now?")
+                .title("Install And Run Clash Verge Service")
                 .kind(MessageDialogKind::Info)
-                .buttons(MessageDialogButtons::OkCancel)
-                .show();
+                .ok_button_label("Confirm")
+                .cancel_button_label("Cancel")
+                .blocking_show();
                 if status {
-                    let _ = install_and_run_service().await;
+                    let _ = install_and_run_service(app_handle).await;
                 }
             }
         };
@@ -145,7 +162,7 @@ pub fn toggle_service_mode() {
 }
 
 // 切换tun模式
-pub fn toggle_tun_mode() {
+pub fn toggle_tun_mode(app_handle: AppHandle) {
     let enable = Config::clash().data().get_enable_tun();
     let toggle_failed_msg = if enable {
         "Disable Failed"
@@ -189,42 +206,63 @@ pub fn toggle_tun_mode() {
                             }
                         }
                         Err(err) => {
-                            Notification::new(APP_ID)
+                            app_handle
+                                .notification()
+                                .builder()
                                 .title("Tun Mode")
                                 .body(format!("{}, {}", toggle_failed_msg, err))
                                 .show()
                                 .unwrap();
+                            // Notification::new(APP_ID)
+                            //     .title("Tun Mode")
+                            //     .body(format!("{}, {}", toggle_failed_msg, err))
+                            //     .show()
+                            //     .unwrap();
                         }
                     }
                 } else {
-                    Notification::new(APP_ID)
+                    app_handle
+                        .notification()
+                        .builder()
                         .title("Tun Mode")
                         .body(format!("{}, {}", toggle_failed_msg, service_status.msg))
                         .show()
                         .unwrap();
+                    // Notification::new(APP_ID)
+                    //     .title("Tun Mode")
+                    //     .body(format!("{}, {}", toggle_failed_msg, service_status.msg))
+                    //     .show()
+                    //     .unwrap();
                 }
             }
             Err(_) => {
-                let status = MessageDialogBuilder::new(
-                    "Install And Run Clash Verge Service",
-                    "Clash Verge Service not installed.\nDo you want to install and run Clash Verge Service right now?",
-                )
+                let status = app_handle.dialog()
+                .message("Clash Verge Service not installed.\nDo you want to install and run Clash Verge Service right now?")
+                .title("Install And Run Clash Verge Service")
                 .kind(MessageDialogKind::Info)
-                .buttons(MessageDialogButtons::OkCancel)
-                .show();
+                .ok_button_label("Confirm")
+                .cancel_button_label("Cancel")
+                .blocking_show();
                 if status {
-                    let _ = install_and_run_service().await;
+                    let _ = install_and_run_service(app_handle.clone()).await;
                     if let Ok(_) = cmds::service::check_service_and_clash().await {
                         match patch_clash(tun).await {
                             Ok(_) => {
                                 log::info!(target: "app", "change tun mode to {:?}", !enable);
                             }
                             Err(err) => {
-                                Notification::new(APP_ID)
+                                app_handle
+                                    .notification()
+                                    .builder()
                                     .title("Tun Mode")
                                     .body(format!("{}, {}", toggle_failed_msg, err))
                                     .show()
                                     .unwrap();
+                                // Notification::new(APP_ID)
+                                //     .title("Tun Mode")
+                                //     .body(format!("{}, {}", toggle_failed_msg, err))
+                                //     .show()
+                                //     .unwrap();
                                 log::error!(target: "app", "{err}")
                             }
                         }
@@ -235,7 +273,7 @@ pub fn toggle_tun_mode() {
     });
 }
 
-async fn install_and_run_service() -> Result<()> {
+async fn install_and_run_service(app_handle: AppHandle) -> Result<()> {
     let title = "Clash Verge Service";
     match cmds::service::install_service().await {
         Ok(()) => {
@@ -246,32 +284,55 @@ async fn install_and_run_service() -> Result<()> {
             .await
             {
                 Ok(()) => {
-                    Notification::new(APP_ID)
+                    app_handle
+                        .notification()
+                        .builder()
                         .title(title)
                         .body("Install and run Clash Verge Service successfully")
                         .show()
                         .unwrap();
+                    // Notification::new(APP_ID)
+                    //     .title(title)
+                    //     .body("Install and run Clash Verge Service successfully")
+                    //     .show()
+                    //     .unwrap();
                     handle::Handle::refresh_verge();
                     Ok(())
                 }
                 Err(err) => {
-                    Notification::new(APP_ID)
+                    app_handle
+                        .notification()
+                        .builder()
                         .title(title)
                         .body(format!(
                             "Install successfully, but Clash Verge Service run failed, {err}"
                         ))
                         .show()
                         .unwrap();
+                    // Notification::new(APP_ID)
+                    //     .title(title)
+                    //     .body(format!(
+                    //         "Install successfully, but Clash Verge Service run failed, {err}"
+                    //     ))
+                    //     .show()
+                    //     .unwrap();
                     Err(err)
                 }
             }
         }
         Err(err) => {
-            Notification::new(APP_ID)
+            app_handle
+                .notification()
+                .builder()
                 .title(title)
                 .body(format!("Install failed, {err}"))
                 .show()
                 .unwrap();
+            // Notification::new(APP_ID)
+            //     .title(title)
+            //     .body(format!("Install failed, {err}"))
+            //     .show()
+            //     .unwrap();
             Err(anyhow!(err))
         }
     }
@@ -427,7 +488,26 @@ pub async fn patch_verge(patch: IVerge) -> Result<()> {
             CoreManager::global().run_core().await?;
         }
         if auto_launch.is_some() {
-            sysopt::Sysopt::global().update_launch()?;
+            let auto_start = auto_launch.unwrap();
+            if auto_start {
+                log::debug!(target: "app", "enable auto start");
+                let _ = handle::Handle::global()
+                    .app_handle
+                    .lock()
+                    .as_ref()
+                    .unwrap()
+                    .autolaunch()
+                    .enable();
+            } else {
+                log::debug!(target: "app", "disable auto start");
+                let _ = handle::Handle::global()
+                    .app_handle
+                    .lock()
+                    .as_ref()
+                    .unwrap()
+                    .autolaunch()
+                    .disable();
+            }
         }
         if system_proxy.is_some()
             || proxy_bypass.is_some()
@@ -441,9 +521,9 @@ pub async fn patch_verge(patch: IVerge) -> Result<()> {
             sysopt::Sysopt::global().guard_proxy();
         }
 
-        if let Some(hotkeys) = patch.hotkeys {
-            hotkey::Hotkey::global().update(hotkeys)?;
-        }
+        // if let Some(hotkeys) = patch.hotkeys {
+        // hotkey::Hotkey::global().update(hotkeys)?;
+        // }
 
         if language.is_some() {
             handle::Handle::update_systray()?;
@@ -531,7 +611,7 @@ async fn update_core_config() -> Result<()> {
 
 /// copy env variable
 pub fn copy_clash_env(app_handle: &AppHandle) {
-    let port = { Config::clash().latest().get_mixed_port() };
+    let port = Config::clash().latest().get_mixed_port();
     let http_proxy = format!("http://127.0.0.1:{}", port);
     let socks5_proxy = format!("socks5://127.0.0.1:{}", port);
 
@@ -540,9 +620,9 @@ pub fn copy_clash_env(app_handle: &AppHandle) {
     let cmd: String = format!("set http_proxy={http_proxy}\r\nset https_proxy={http_proxy}");
     let ps: String = format!("$env:HTTP_PROXY=\"{http_proxy}\"; $env:HTTPS_PROXY=\"{http_proxy}\"");
 
-    let mut cliboard = app_handle.clipboard_manager();
+    let cliboard = app_handle.clipboard();
 
-    let env_type = { Config::verge().latest().env_type.clone() };
+    let env_type = Config::verge().latest().env_type.clone();
     let env_type = match env_type {
         Some(env_type) => env_type,
         None => {

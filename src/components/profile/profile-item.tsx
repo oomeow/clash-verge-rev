@@ -30,7 +30,7 @@ import {
   SxProps,
   Typography,
 } from "@mui/material";
-import { open } from "@tauri-apps/api/shell";
+import { open } from "@tauri-apps/plugin-shell";
 import { useLockFn } from "ahooks";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";

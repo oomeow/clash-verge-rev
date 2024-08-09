@@ -8,7 +8,7 @@ import { getClashConfig } from "@/services/api";
 import "@/services/i18n";
 import { sleep } from "@/utils";
 import { ResizeObserver } from "@juggle/resize-observer";
-import { WebviewWindow } from "@tauri-apps/api/window";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { ComposeContextProvider } from "foxact/compose-context-provider";
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -33,9 +33,9 @@ if (!container) {
 
 if (process.env.NODE_ENV !== "development") {
   // disable context menu
-  document.addEventListener("contextmenu", (event) => {
-    event.preventDefault();
-  });
+  // document.addEventListener("contextmenu", (event) => {
+  //   event.preventDefault();
+  // });
 }
 
 document.addEventListener("keydown", (event) => {
@@ -86,12 +86,17 @@ async function checkClashAndRender(container: HTMLElement) {
         3000,
       );
     }
-    const clashConfigs = await getClashConfig();
-    if (clashConfigs) {
-      renderRoot(container);
-      break;
+    try {
+      const clashConfigs = await getClashConfig();
+      if (clashConfigs) {
+        renderRoot(container);
+        break;
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      await sleep(500);
     }
-    await sleep(500);
   }
 }
 

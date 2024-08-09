@@ -11,7 +11,7 @@ DEB_NAME="clash-verge_${VERSION}_amd64.deb"
 PROJECT_RELEASE_DEB_PATH="$PROJECT_ROOT_DIR/src-tauri/target/release/bundle/deb/${DEB_NAME}"
 
 read -p "rebuild deb package? (y/n): " rebuild
-if [[ "$rebuild" =~ ^[Yy]$ ]]; then
+if [[ "$rebuild" =~ ^[Yy]$ || -z $rebuild ]]; then
     pnpm build -b deb
     cp ${PROJECT_RELEASE_DEB_PATH} . || exit 1
 else
@@ -28,7 +28,7 @@ makepkg -fc
 read -p "install now? (y/n): " yay_install
 
 ARCH_PKG_VERSION=$(grep "^pkgver=" ${CURRENT_SCRIPT_DIR}/PKGBUILD | sed 's/^pkgver=//')
-if [[ "$yay_install" =~ ^[Yy]$ ]]; then
+if [[ "$yay_install" =~ ^[Yy]$ || -z $yay_install ]]; then
     echo "installing..."
     yay -U clash-verge-rev-alpha-bin-${ARCH_PKG_VERSION}-1-x86_64.pkg.tar.zst
     echo -e "\e[32m install finished."

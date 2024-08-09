@@ -15,7 +15,7 @@ import getSystem from "@/utils/get-system";
 import { DarkMode, LightMode } from "@mui/icons-material";
 import { List, Paper, ThemeProvider } from "@mui/material";
 import { listen } from "@tauri-apps/api/event";
-import { appWindow } from "@tauri-apps/api/window";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
 import "dayjs/locale/zh-cn";
@@ -28,6 +28,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { CSSTransition, SwitchTransition } from "react-transition-group";
 import { SWRConfig, mutate } from "swr";
 import { routers } from "./_routers";
+const appWindow = getCurrentWebviewWindow();
 
 export let portableFlag = false;
 dayjs.extend(relativeTime);

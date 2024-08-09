@@ -11,8 +11,8 @@ import {
 import getSystem from "@/utils/get-system";
 import { Button, Input, MenuItem, Select, Typography } from "@mui/material";
 import { version } from "@root/package.json";
-import { open } from "@tauri-apps/api/dialog";
-import { checkUpdate } from "@tauri-apps/api/updater";
+import { open } from "@tauri-apps/plugin-dialog";
+import { check } from "@tauri-apps/plugin-updater";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfigViewer } from "./mods/config-viewer";
@@ -56,8 +56,8 @@ const SettingVerge = ({ onError }: Props) => {
 
   const onCheckUpdate = async () => {
     try {
-      const info = await checkUpdate();
-      if (!info?.shouldUpdate) {
+      const info = await check();
+      if (!info?.available) {
         Notice.success(t("Currently on the Latest Version"));
       } else {
         updateRef.current?.open();
@@ -169,7 +169,7 @@ const SettingVerge = ({ onError }: Props) => {
               <>
                 <Button
                   onClick={async () => {
-                    const path = await open({
+                    const fileResponse = await open({
                       directory: false,
                       multiple: false,
                       filters: [
@@ -179,7 +179,8 @@ const SettingVerge = ({ onError }: Props) => {
                         },
                       ],
                     });
-                    if (path?.length) {
+                    const path = fileResponse?.path;
+                    if (path) {
                       onChangeData({ startup_script: `${path}` });
                       patchVerge({ startup_script: `${path}` });
                     }

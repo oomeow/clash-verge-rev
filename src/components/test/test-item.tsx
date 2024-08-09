@@ -18,7 +18,7 @@ import { TestBox } from "./test-box";
 import delayManager from "@/services/delay";
 import { cmdTestDelay, downloadIconCache } from "@/services/cmds";
 import { listen } from "@tauri-apps/api/event";
-import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 interface Props {
   id: string;

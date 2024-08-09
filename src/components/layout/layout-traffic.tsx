@@ -1,22 +1,22 @@
-import { useRef } from "react";
-import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import { Notice } from "@/components/base";
+import { useClashInfo } from "@/hooks/use-clash";
+import { useLogData } from "@/hooks/use-log-data";
+import { useVerge } from "@/hooks/use-verge";
+import { useVisibility } from "@/hooks/use-visibility";
+import parseTraffic from "@/utils/parse-traffic";
+import { createSockette } from "@/utils/websocket";
 import {
   ArrowDownward,
   ArrowUpward,
   MemoryOutlined,
 } from "@mui/icons-material";
-import { useClashInfo } from "@/hooks/use-clash";
-import { useVerge } from "@/hooks/use-verge";
-import { TrafficGraph, type TrafficRef } from "./traffic-graph";
-import { useLogData } from "@/hooks/use-log-data";
-import { useVisibility } from "@/hooks/use-visibility";
-import parseTraffic from "@/utils/parse-traffic";
-import useSWRSubscription from "swr/subscription";
-import { createSockette } from "@/utils/websocket";
-import { invoke } from "@tauri-apps/api";
-import { Notice } from "@/components/base";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import { invoke } from "@tauri-apps/api/core";
 import { t } from "i18next";
 import { debounce } from "lodash-es";
+import { useRef } from "react";
+import useSWRSubscription from "swr/subscription";
+import { TrafficGraph, type TrafficRef } from "./traffic-graph";
 
 interface MemoryUsage {
   inuse: number;

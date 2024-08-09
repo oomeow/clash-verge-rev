@@ -1,4 +1,3 @@
-use super::dirs::APP_ID;
 use crate::config::PrfOption;
 use crate::{
     config::{Config, PrfItem},
@@ -10,8 +9,8 @@ use crate::{log_err, trace_err};
 use anyhow::Result;
 use once_cell::sync::OnceCell;
 use std::net::TcpListener;
-use tauri::api::notification;
 use tauri::{AppHandle, CloseRequestApi, Manager};
+use tauri_plugin_notification::NotificationExt;
 
 pub static VERSION: OnceCell<String> = OnceCell::new();
 
@@ -32,7 +31,7 @@ pub fn find_unused_port() -> Result<u16> {
 /// handle something when start app
 pub fn resolve_setup(app_handle: &AppHandle) {
     let version = app_handle.package_info().version.to_string();
-    handle::Handle::global().init(app_handle.app_handle());
+    handle::Handle::global().init(app_handle.app_handle().clone());
     VERSION.get_or_init(|| version.clone());
 
     log_err!(init::init_resources());
@@ -44,20 +43,20 @@ pub fn resolve_setup(app_handle: &AppHandle) {
     log_err!(Config::init_config());
 
     log::trace!("launch core");
-    log_err!(CoreManager::global().init());
+    log_err!(CoreManager::global().init(app_handle.clone()));
 
     // setup a simple http server for singleton
     log::trace!("launch embed server");
-    server::embed_server(app_handle.app_handle());
+    server::embed_server(app_handle.clone());
 
     log::trace!("init system tray");
-    log_err!(tray::Tray::update_systray(&app_handle.app_handle()));
+    log_err!(tray::Tray::update_systray(&app_handle.clone()));
 
-    log_err!(sysopt::Sysopt::global().init_launch());
+    // log_err!(sysopt::Sysopt::global().init_launch());
     log_err!(sysopt::Sysopt::global().init_sysproxy());
 
     log_err!(handle::Handle::update_systray_part());
-    log_err!(hotkey::Hotkey::global().init(app_handle.app_handle()));
+    // log_err!(hotkey::Hotkey::global().init(app_handle.clone()));
     log_err!(timer::Timer::global().init());
     log_err!(handle::Handle::init_tun_mode_by_api());
 
@@ -66,7 +65,7 @@ pub fn resolve_setup(app_handle: &AppHandle) {
         let param = argvs[1].as_str();
         if param.starts_with("clash:") {
             tauri::async_runtime::block_on(async {
-                resolve_scheme(argvs[1].to_owned()).await;
+                resolve_scheme(app_handle, argvs[1].to_owned()).await;
             });
         }
     }
@@ -80,17 +79,17 @@ pub fn resolve_reset() {
 
 /// create main window
 pub fn create_window(app_handle: &AppHandle) {
-    if let Some(window) = app_handle.get_window("main") {
+    if let Some(window) = app_handle.get_webview_window("main") {
         trace_err!(window.unminimize(), "set win unminimize");
         trace_err!(window.show(), "set win visible");
         trace_err!(window.set_focus(), "set win focus");
         return;
     }
 
-    let mut builder = tauri::window::WindowBuilder::new(
+    let mut builder = tauri::webview::WebviewWindowBuilder::new(
         app_handle,
         "main".to_string(),
-        tauri::WindowUrl::App("index.html".into()),
+        tauri::WebviewUrl::App("index.html".into()),
     )
     .title("Clash Verge")
     .visible(false)
@@ -188,32 +187,32 @@ pub fn create_window(app_handle: &AppHandle) {
 }
 
 /// save window size and position
-pub fn save_window_size_position(app_handle: &AppHandle, save_to_file: bool) -> Result<()> {
-    let verge = Config::verge();
-    let mut verge = verge.latest();
+// pub fn save_window_size_position(app_handle: &AppHandle, save_to_file: bool) -> Result<()> {
+//     let verge = Config::verge();
+//     let mut verge = verge.latest();
 
-    if save_to_file {
-        verge.save_file()?;
-    }
+//     if save_to_file {
+//         verge.save_file()?;
+//     }
 
-    let win = app_handle
-        .get_window("main")
-        .ok_or(anyhow::anyhow!("failed to get window"))?;
+//     let win = app_handle
+//         .get_webview_window("main")
+//         .ok_or(anyhow::anyhow!("failed to get window"))?;
 
-    let scale = win.scale_factor()?;
-    let size = win.inner_size()?;
-    let size = size.to_logical::<f64>(scale);
-    let pos = win.outer_position()?;
-    let pos = pos.to_logical::<f64>(scale);
-    let is_maximized = win.is_maximized()?;
-    verge.window_is_maximized = Some(is_maximized);
-    if !is_maximized && size.width >= 600.0 && size.height >= 520.0 {
-        verge.window_size_position = Some(vec![size.width, size.height, pos.x, pos.y]);
-    }
-    Ok(())
-}
+//     let scale = win.scale_factor()?;
+//     let size = win.inner_size()?;
+//     let size = size.to_logical::<f64>(scale);
+//     let pos = win.outer_position()?;
+//     let pos = pos.to_logical::<f64>(scale);
+//     let is_maximized = win.is_maximized()?;
+//     verge.window_is_maximized = Some(is_maximized);
+//     if !is_maximized && size.width >= 600.0 && size.height >= 520.0 {
+//         verge.window_size_position = Some(vec![size.width, size.height, pos.x, pos.y]);
+//     }
+//     Ok(())
+// }
 
-pub async fn resolve_scheme(param: String) {
+pub async fn resolve_scheme(app_handle: &AppHandle, param: String) {
     let url = param
         .trim_start_matches("clash://install-config/?url=")
         .trim_start_matches("clash://install-config?url=");
@@ -226,14 +225,18 @@ pub async fn resolve_scheme(param: String) {
     };
     if let Ok(item) = PrfItem::from_url(url, None, None, Some(option)).await {
         if Config::profiles().data().append_item(item).is_ok() {
-            notification::Notification::new(APP_ID)
+            app_handle
+                .notification()
+                .builder()
                 .title("Clash Verge")
                 .body("Import profile success")
                 .show()
                 .unwrap();
         };
     } else {
-        notification::Notification::new(APP_ID)
+        app_handle
+            .notification()
+            .builder()
             .title("Clash Verge")
             .body("Import profile failed")
             .show()
@@ -248,7 +251,11 @@ pub fn handle_window_close(api: CloseRequestApi, app_handle: &AppHandle) {
 
     let keep_ui_active = verge.enable_keep_ui_active.unwrap_or(false);
     if keep_ui_active {
-        app_handle.get_window("main").unwrap().hide().unwrap();
+        app_handle
+            .get_webview_window("main")
+            .unwrap()
+            .hide()
+            .unwrap();
         api.prevent_close();
     }
 }

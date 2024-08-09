@@ -12,7 +12,9 @@ use std::{
     path::PathBuf,
 };
 use sysproxy::{Autoproxy, Sysproxy};
-use tauri::{api, Manager};
+use tauri::{AppHandle, Manager};
+use tauri_plugin_window_state::{AppHandleExt, StateFlags};
+
 type CmdResult<T = ()> = Result<T, String>;
 
 #[tauri::command]
@@ -99,7 +101,7 @@ pub fn patch_profile(index: String, profile: PrfItem) -> CmdResult {
 }
 
 #[tauri::command]
-pub fn view_profile(app_handle: tauri::AppHandle, index: String) -> CmdResult {
+pub fn view_profile(app_handle: AppHandle, index: String) -> CmdResult {
     let file = {
         wrap_err!(Config::profiles().latest().get_item(&index))?
             .file
@@ -359,7 +361,7 @@ pub fn copy_icon_file(path: String, name: String) -> CmdResult<String> {
 
 #[tauri::command]
 pub fn open_devtools(app_handle: tauri::AppHandle) {
-    if let Some(window) = app_handle.get_window("main") {
+    if let Some(window) = app_handle.get_webview_window("main") {
         if !window.is_devtools_open() {
             window.open_devtools();
         } else {
@@ -369,9 +371,9 @@ pub fn open_devtools(app_handle: tauri::AppHandle) {
 }
 
 #[tauri::command]
-pub fn restart_app(app_handle: tauri::AppHandle) {
-    let _ = resolve::save_window_size_position(&app_handle, true);
-    api::process::restart(&app_handle.env());
+pub fn restart_app(app_handle: AppHandle) {
+    let _ = app_handle.save_window_state(StateFlags::all());
+    app_handle.restart();
 }
 
 #[tauri::command]
@@ -392,9 +394,9 @@ pub async fn get_clash_configs() -> CmdResult<bool> {
 
 #[tauri::command]
 pub fn exit_app(app_handle: tauri::AppHandle) {
-    let _ = resolve::save_window_size_position(&app_handle, true);
+    let _ = app_handle.save_window_state(StateFlags::all());
     resolve::resolve_reset();
-    api::process::kill_children();
+    // api::process::kill_children();
     app_handle.exit(0);
     std::process::exit(0);
 }

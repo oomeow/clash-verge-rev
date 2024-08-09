@@ -10,7 +10,7 @@ edition = "2021"
 build = "build.rs"
 
 [build-dependencies]
-tauri-build = { version = "1.5.1", features = [] }
+tauri-build = { version = "2.0.0-rc", features = [] }
 
 [dependencies]
 warp = "0.3.7"
@@ -30,31 +30,27 @@ once_cell = "1.19"
 port_scanner = "0.1.5"
 delay_timer = "0.11"
 parking_lot = "0.12"
-auto-launch = "0.5.0"
+# auto-launch = "0.5.0"
 percent-encoding = "2.3.1"
 window-shadows = { version = "0.2.2" }
 tokio = { version = "1.37.0", features = ["full"] }
 serde = { version = "1.0.200", features = ["derive"] }
 reqwest = { version = "0.12.4", features = ["rustls-tls", "json"] }
 sysproxy = { git = "https://github.com/zzzgydi/sysproxy-rs", branch = "main" }
-tauri = { version = "1.6.2", features = [
-    "fs-read-file",
-    "fs-exists",
-    "path-all",
+tauri = { version = "2.0.0-rc", features = [
     "protocol-asset",
-    "dialog-open",
-    "notification-all",
-    "icon-png",
-    "icon-ico",
-    "clipboard-all",
-    "global-shortcut-all",
-    "process-all",
-    "shell-all",
-    "system-tray",
-    "updater",
-    "window-all",
+    "image-ico",
+    "image-png",
     "devtools",
+    "tray-icon",
 ] }
+tauri-plugin-clipboard-manager = "2.1.0-beta.7"
+tauri-plugin-dialog = "2.0.0-rc.0"
+tauri-plugin-fs = "2.0.0-rc.0"
+tauri-plugin-process = "2.0.0-rc.0"
+tauri-plugin-shell = "2.0.0-rc.0"
+tauri-plugin-updater = "2.0.0-rc.0"
+tauri-plugin-notification = "2.0.0-rc.0"
 
 [target.'cfg(windows)'.dependencies]
 runas = "=1.2.0"
@@ -63,6 +59,12 @@ winreg = "0.52.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 users = "0.11.0"
+
+[target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
+tauri-plugin-autostart = "2.0.0-rc.0"
+tauri-plugin-global-shortcut = "2.0.0-rc.0"
+tauri-plugin-updater = "2.0.0-rc.0"
+tauri-plugin-window-state = "2.0.0-rc"
 #openssl
 
 [features]

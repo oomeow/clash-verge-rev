@@ -9,11 +9,15 @@ use parking_lot::Mutex;
 use serde_yaml::Mapping;
 use std::{sync::Arc, time::Duration};
 use sysinfo::System;
-use tauri::api::process::{Command, CommandChild, CommandEvent};
+use tauri::AppHandle;
+use tauri_plugin_shell::process::{CommandChild, CommandEvent};
+use tauri_plugin_shell::ShellExt;
 use tokio::time::sleep;
 
 #[derive(Debug)]
 pub struct CoreManager {
+    app_handle: Arc<Mutex<Option<AppHandle>>>,
+
     sidecar: Arc<Mutex<Option<CommandChild>>>,
 
     #[allow(unused)]
@@ -25,12 +29,14 @@ impl CoreManager {
         static CORE_MANAGER: OnceCell<CoreManager> = OnceCell::new();
 
         CORE_MANAGER.get_or_init(|| CoreManager {
+            app_handle: Arc::new(Mutex::new(None)),
             sidecar: Arc::new(Mutex::new(None)),
             use_service_mode: Arc::new(Mutex::new(false)),
         })
     }
 
-    pub fn init(&self) -> Result<()> {
+    pub fn init(&self, app_handle: AppHandle) -> Result<()> {
+        *self.app_handle.lock() = Some(app_handle);
         tauri::async_runtime::spawn(async {
             let enable_random_port = Config::verge().latest().enable_random_port.unwrap_or(false);
             if enable_random_port {
@@ -56,7 +62,8 @@ impl CoreManager {
     }
 
     /// 检查订阅是否正确
-    pub fn check_config(&self) -> Result<()> {
+    pub async fn check_config(&self) -> Result<()> {
+        let app_handle = self.app_handle.lock().as_ref().unwrap().clone();
         let config_path = Config::generate_file(ConfigType::Check)?;
         let config_path = dirs::path_to_str(&config_path)?;
 
@@ -66,17 +73,23 @@ impl CoreManager {
         let app_dir = dirs::app_home_dir()?;
         let app_dir = dirs::path_to_str(&app_dir)?;
 
-        let output = Command::new_sidecar(clash_core)?
+        let output = app_handle
+            .shell()
+            .sidecar(clash_core)
+            .unwrap()
             .args(["-t", "-d", app_dir, "-f", config_path])
-            .output()?;
+            .output()
+            .await
+            .unwrap();
 
         if !output.status.success() {
-            let error = clash_api::parse_check_output(output.stdout.clone());
+            let error =
+                clash_api::parse_check_output(String::from_utf8(output.stdout.clone()).unwrap());
             let error = match !error.is_empty() {
                 true => error,
-                false => output.stdout.clone(),
+                false => String::from_utf8(output.stdout.clone()).unwrap(),
             };
-            Logger::global().set_log(output.stdout);
+            Logger::global().set_log(String::from_utf8(output.stdout).unwrap());
             bail!("{error}");
         }
 
@@ -175,7 +188,8 @@ impl CoreManager {
 
         let args = vec!["-d", app_dir, "-f", config_path];
 
-        let cmd = Command::new_sidecar(clash_core)?;
+        let app_handle = self.app_handle.lock().as_ref().unwrap().clone();
+        let cmd = app_handle.shell().sidecar(clash_core)?;
         let (mut rx, cmd_child) = cmd.args(args).spawn()?;
 
         let mut sidecar = self.sidecar.lock();
@@ -186,10 +200,12 @@ impl CoreManager {
             while let Some(event) = rx.recv().await {
                 match event {
                     CommandEvent::Stdout(line) => {
+                        let line = String::from_utf8(line).unwrap();
                         log::info!(target: "app", "[mihomo]: {line}");
                         Logger::global().set_log(line);
                     }
                     CommandEvent::Stderr(err) => {
+                        let err = String::from_utf8(err).unwrap();
                         log::error!(target: "app", "[mihomo]: {err}");
                         Logger::global().set_log(err);
                     }
@@ -290,7 +306,7 @@ impl CoreManager {
         // 更新订阅
         Config::generate()?;
 
-        self.check_config()?;
+        self.check_config().await?;
 
         // 清掉旧日志
         Logger::global().clear_log();
@@ -319,7 +335,7 @@ impl CoreManager {
         Config::generate()?;
 
         // 检查订阅是否正常
-        self.check_config()?;
+        self.check_config().await?;
 
         // 更新运行时订阅
         let path = Config::generate_file(ConfigType::Run)?;

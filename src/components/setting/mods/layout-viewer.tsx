@@ -16,10 +16,10 @@ import {
   styled,
   Tooltip,
 } from "@mui/material";
-import { open as openDialog } from "@tauri-apps/api/dialog";
-import { exists } from "@tauri-apps/api/fs";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { join } from "@tauri-apps/api/path";
-import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { exists } from "@tauri-apps/plugin-fs";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -259,7 +259,7 @@ export const LayoutViewer = forwardRef<DialogRef>((props, ref) => {
                   onChangeData({ common_tray_icon: false });
                   patchVerge({ common_tray_icon: false });
                 } else {
-                  const path = await openDialog({
+                  const fielResponse = await openDialog({
                     directory: false,
                     multiple: false,
                     filters: [
@@ -269,6 +269,7 @@ export const LayoutViewer = forwardRef<DialogRef>((props, ref) => {
                       },
                     ],
                   });
+                  const path = fielResponse?.path;
                   if (path?.length) {
                     await copyIconFile(`${path}`, "common");
                     await initIconPath();
@@ -303,7 +304,7 @@ export const LayoutViewer = forwardRef<DialogRef>((props, ref) => {
                   onChangeData({ sysproxy_tray_icon: false });
                   patchVerge({ sysproxy_tray_icon: false });
                 } else {
-                  const path = await openDialog({
+                  const fileResponse = await openDialog({
                     directory: false,
                     multiple: false,
                     filters: [
@@ -313,6 +314,7 @@ export const LayoutViewer = forwardRef<DialogRef>((props, ref) => {
                       },
                     ],
                   });
+                  const path = fileResponse?.path;
                   if (path?.length) {
                     await copyIconFile(`${path}`, "sysproxy");
                     await initIconPath();
@@ -345,7 +347,7 @@ export const LayoutViewer = forwardRef<DialogRef>((props, ref) => {
                   onChangeData({ tun_tray_icon: false });
                   patchVerge({ tun_tray_icon: false });
                 } else {
-                  const path = await openDialog({
+                  const fileResponse = await openDialog({
                     directory: false,
                     multiple: false,
                     filters: [
@@ -355,6 +357,7 @@ export const LayoutViewer = forwardRef<DialogRef>((props, ref) => {
                       },
                     ],
                   });
+                  const path = fileResponse?.path;
                   if (path?.length) {
                     await copyIconFile(`${path}`, "tun");
                     await initIconPath();

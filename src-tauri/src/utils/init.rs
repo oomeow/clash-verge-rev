@@ -10,7 +10,6 @@ use log4rs::encode::pattern::PatternEncoder;
 use std::fs::{self, DirEntry};
 use std::path::PathBuf;
 use std::str::FromStr;
-use tauri::api::process::Command;
 
 /// initialize this instance's log file
 fn init_log() -> Result<()> {
@@ -316,13 +315,13 @@ pub fn startup_script() -> Result<()> {
         let current_dir = current_dir.parent();
         match current_dir {
             Some(dir) => {
-                let _ = Command::new(shell)
+                let _ = std::process::Command::new(shell)
                     .current_dir(dir.to_path_buf())
                     .args([path])
                     .output()?;
             }
             None => {
-                let _ = Command::new(shell).args([path]).output()?;
+                let _ = std::process::Command::new(shell).args([path]).output()?;
             }
         }
     }

@@ -37,12 +37,15 @@ pub fn use_tun(mut config: Mapping, enable: bool) -> Mapping {
         #[cfg(target_os = "macos")]
         {
             use crate::utils::dirs;
-            use tauri::api::process::Command;
+
+            let app_handle = handle::Handle::global().app_handle.lock().as_ref().unwrap();
             log::info!(target: "app", "try to set system dns");
             let resource_dir = dirs::app_resources_dir().unwrap();
             let script = resource_dir.join("set_dns.sh");
             let script = script.to_string_lossy();
-            match Command::new("bash")
+            match app_handle
+                .shell()
+                .command("bash")
                 .args([script])
                 .current_dir(resource_dir)
                 .status()
@@ -65,7 +68,7 @@ pub fn use_tun(mut config: Mapping, enable: bool) -> Mapping {
         #[cfg(target_os = "macos")]
         {
             use crate::utils::dirs;
-            use tauri::api::process::Command;
+            use tauri_plugin_shell::process::Command;
             log::info!(target: "app", "try to unset system dns");
             let resource_dir = dirs::app_resources_dir().unwrap();
             let script = resource_dir.join("unset_dns.sh");

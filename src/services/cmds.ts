@@ -1,5 +1,5 @@
 import { Notice } from "@/components/base";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import dayjs from "dayjs";
 
 export async function getClashLogs() {
