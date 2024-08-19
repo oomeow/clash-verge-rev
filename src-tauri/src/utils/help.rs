@@ -123,7 +123,7 @@ pub fn open_file(app: tauri::AppHandle, path: PathBuf) -> Result<()> {
         .creation_flags(CREATE_NO_WINDOW)
         .output()?;
     if !output.status.success() {
-        log::error!(target: "app", "Can not open file with VS code, {}", err);
+        // log::error!(target: "app", "Can not open file with VS code, {}", err);
         // default open
         let _ = app.shell().open(path.to_string_lossy(), None);
     }

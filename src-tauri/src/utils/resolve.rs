@@ -171,11 +171,8 @@ pub fn create_window(app_handle: &AppHandle) {
                 trace_err!(win.center(), "set win center");
             }
 
-            #[cfg(not(target_os = "linux"))]
-            {
-                use window_shadows::set_shadow;
-                trace_err!(set_shadow(&win, true), "set win shadow");
-            }
+            #[cfg(any(windows, target_os = "macos"))]
+            let _ = win.set_shadow(true);
             if is_maximized {
                 trace_err!(win.maximize(), "set win maximize");
             }
